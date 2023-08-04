@@ -13,10 +13,23 @@ die() {
 
 DEVICE='bluejay'
 VERSION='2023072600'
-BOOTLOADER_IMAGE="bootloader-${DEVICE}-${DEVICE}-1.2-9894665.img"
-RADIO_IMAGE="radio-${DEVICE}-g5123b-116954-230511-b-10112789.img"
-SYSTEM_IMAGE="image-${DEVICE}-${VERSION}.zip"
 IMAGES="${DEVICE}-factory-${VERSION}.zip"
+BOOTLOADER_IMAGE=''
+RADIO_IMAGE=''
+SYSTEM_IMAGE=''
+
+set_var() {
+  local var="${1}"
+  local pat="${2}"
+  local filename="$(find . -maxdepth 1 -type f -name "${pat}" | head -n 1)"
+  eval "${var}=${filename}"
+}
+
+set_image_names() {
+  set_var BOOTLOADER_IMAGE "bootloader-${DEVICE}-*.img"
+  set_var RADIO_IMAGE "radio-${DEVICE}-*.img"
+  set_var SYSTEM_IMAGE "image-${DEVICE}-${VERSION}.zip"
+}
 
 check_dependencies() {
   local dependencies=(
@@ -54,7 +67,7 @@ fetch_and_verify_images() {
   local signature="${IMAGES}.sig"
   if ! curl &>/dev/null \
     -O "${base_url}/${signature}" \
-    -O "${base_url}/${factory_key}"\
+    -O "${base_url}/${factory_key}" \
     -O "${base_url}/${IMAGES}"
   then
     die 'error fetching resources'
@@ -112,9 +125,10 @@ lock_bootloader() {
 prepare() {
   check_dependencies
   check_fastboot_version
-  # check_correct_product
+  check_correct_product
   fetch_and_verify_images
   extract_images
+  set_image_names
 }
 
 install() {
@@ -142,7 +156,7 @@ install() {
 
 main() {
   prepare
-  # install
+  install
 }
 
 main "$@"
