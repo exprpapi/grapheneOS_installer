@@ -18,17 +18,15 @@ BOOTLOADER_IMAGE=''
 RADIO_IMAGE=''
 SYSTEM_IMAGE=''
 
-set_var() {
-  local var="${1}"
-  local pat="${2}"
-  local filename="$(find . -maxdepth 1 -type f -name "${pat}" | head -n 1)"
-  eval "${var}=${filename}"
+find_image() {
+  local pattern="${1}"
+  find . -maxdepth 1 -type f -name "${pattern}" | head -n 1
 }
 
 set_image_names() {
-  set_var BOOTLOADER_IMAGE "bootloader-${DEVICE}-*.img"
-  set_var RADIO_IMAGE "radio-${DEVICE}-*.img"
-  set_var SYSTEM_IMAGE "image-${DEVICE}-${VERSION}.zip"
+  BOOTLOADER_IMAGE="$(find_image "bootloader-${DEVICE}-*.img")"
+  RADIO_IMAGE="$(find_image "radio-${DEVICE}-*.img")"
+  SYSTEM_IMAGE="$(find_image "image-${DEVICE}-${VERSION}.zip")"
 }
 
 check_dependencies() {
@@ -47,7 +45,7 @@ check_dependencies() {
 check_fastboot_version() {
   local version="$(
     fastboot --version \
-      | perl -ne 'print if s/.*version ([0-9]*).([0-9]*).([0-9]*).*/\1\2\3/g'
+      | perl -ne 'print if s/.*version (\d*).(\d*).(\d*).*/\1\2\3/g'
   )"
   if [[ "${version}" -lt 3303 ]]; then
     die 'fastboot too old'
@@ -63,7 +61,7 @@ check_correct_product() {
 
 fetch_and_verify_images() {
   local base_url='https://releases.grapheneos.org'
-  local factory_key="factory.pub"
+  local factory_key='factory.pub'
   local signature="${IMAGES}.sig"
   if ! curl &>/dev/null \
     -O "${base_url}/${signature}" \
@@ -155,8 +153,14 @@ install() {
 }
 
 main() {
-  prepare
-  install
+  local tmpdir='./build'
+  mkdir -p "${tmpdir}"
+  (
+    cd "${tmpdir}"
+    prepare
+    install
+  )
+  rm -rf "${tmpdir}"
 }
 
 main "$@"
