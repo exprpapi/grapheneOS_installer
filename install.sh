@@ -146,6 +146,7 @@ install() {
   sleep 5
   disable_uart
   erase_partitions
+  update_system_image
   reboot_bootloader
   sleep 5
   lock_bootloader
