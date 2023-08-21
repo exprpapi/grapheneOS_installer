@@ -12,7 +12,7 @@ Make sure the phone is OEM unlocked, connected and booted into the bootloader in
 ```bash
 git clone 'https://github.com/exprpapi/grapheneos_installer'
 cd grapheneos_installer
-sh install.sh
+make
 ```
 
 After the script is finished, re-enable OEM lock in your GrapheneOS settings.
@@ -21,7 +21,7 @@ After the script is finished, re-enable OEM lock in your GrapheneOS settings.
 
 On Arch Linux
 ```bash
-pacman -S \
+sudo pacman -S --noconfirm --needed \
   android-tools \
   android-udev \
   signify \

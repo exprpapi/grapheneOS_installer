@@ -63,11 +63,19 @@ fetch_and_verify_images() {
   local base_url='https://releases.grapheneos.org'
   local factory_key='factory.pub'
   local signature="${IMAGES}.sig"
-  if ! curl &>/dev/null \
-    -O "${base_url}/${signature}" \
-    -O "${base_url}/${factory_key}" \
-    -O "${base_url}/${IMAGES}"
-  then
+
+  exists() {
+    [[ -f "${signature}" && -f "${factory_key}" && -f "${IMAGES}" ]]
+  }
+
+  fetch() {
+    curl --progress-bar \
+      -O "${base_url}/${signature}" \
+      -O "${base_url}/${factory_key}" \
+      -O "${base_url}/${IMAGES}"
+  }
+
+  if ! exists && ! fetch; then
     die 'error fetching resources'
   fi
   if ! signify -Cqp "${factory_key}" -x "${signature}"; then
@@ -76,7 +84,7 @@ fetch_and_verify_images() {
 }
 
 extract_images() {
-  unzip -jo "${IMAGES}"
+  unzip -njo "${IMAGES}"
 }
 
 unlock_bootloader() {
@@ -120,6 +128,21 @@ lock_bootloader() {
   fastboot flashing lock
 }
 
+await_user() {
+  local blue_bold='\e[1;34m'
+  local reset='\e[0m'
+  local msg="${1}"
+  printf "${blue_bold}%s (y/n): ${reset}" "${msg}"
+  read response
+  if [[ "${response}" != 'y' ]]; then
+    die 'user did not confirm: '"'${msg}'"
+  fi
+}
+
+await_phone() {
+  sleep 5
+}
+
 prepare() {
   check_dependencies
   check_fastboot_version
@@ -131,37 +154,46 @@ prepare() {
 
 install() {
   unlock_bootloader
-  sleep 5
+  await_user 'Did you unlock the bootloader on the phone?'
+  await_phone
+
   flash_bootloader
   reboot_bootloader
-  sleep 5
+  await_phone
+
   flash_bootloader
   reboot_bootloader
-  sleep 5
+  await_phone
+
   flash_radio
   reboot_bootloader
-  sleep 5
+  await_phone
+
   flash_custom_key
   reboot_bootloader
-  sleep 5
+  await_phone
+
   disable_uart
   erase_partitions
   update_system_image
   reboot_bootloader
-  sleep 5
+  await_phone
+
   lock_bootloader
-  sleep 5
+  await_user 'Did you lock the bootloader on the phone?'
+  await_phone
 }
 
 main() {
-  local tmpdir='./build'
-  mkdir -p "${tmpdir}"
-  (
-    cd "${tmpdir}"
-    prepare
-    install
-  )
-  rm -rf "${tmpdir}"
+  local build_dir='./build'
+  mkdir -p "${build_dir}"
+  local verb="${1:-}"
+  case "${verb}" in
+    prepare) (cd "${build_dir}" && prepare) ;;
+    install) (cd "${build_dir}" && prepare && install) ;;
+    clean) rm -rf "${build_dir}" ;;
+    *) die 'usage: sh install.sh <verb>'
+  esac
 }
 
 main "$@"
